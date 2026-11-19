@@ -9,45 +9,30 @@
 ---
 
 ## 2. Objetivo, Público Previsto e Interação Principal
-- **Objetivo:** Simular um setor de controle de aproximação aérea com pista única em **Terminal ASCII** no simulador MARS, desafiando o usuário a gerenciar 6 voos em diferentes cenários operacionais até o pouso seguro, equilibrando altitude, espera em órbita, consumo de combustível e separação mínima.
-- **Público previsto:** Estudantes e avaliadores da disciplina de Arquitetura e Organização de Computadores interessados em simulações interativas em Assembly MIPS com forte organização visual em modo texto e controle rigoroso de estado em memória.
-- **Interação principal:** Após um briefing inicial explicativo e escolha entre 3 cenários determinísticos, o controlador visualiza a cada turno um painel dividido em 5 seções (`Caixa de Rádio`, `Cabeçalho do Setor`, `Radar 2D ASCII com Legenda`, `Tabela de Telemetria` e `Painel de Comando da Torre`). Ele pode comandar qualquer voo ativo (`1..6`), avançar o turno diretamente mantendo todos no curso (`7`), consultar o manual completo sem gastar turno (`8`) ou encerrar (`0`).
+- **Objetivo:** Simular um setor de controle de aproximação aérea com pista única em **Terminal ASCII** no simulador MARS, desafiando o controlador a gerenciar 6 aeronaves em **3 fases fixas de dificuldade crescente** ou em **Modo Aleatório Dinâmico**, respeitando limites rígidos da pista (`00 NM`), tempo de taxiamento pós-pouso, consumo de combustível e separação mínima.
+- **Público previsto:** Estudantes e avaliadores da disciplina de Arquitetura e Organização de Computadores interessados em simulações de sistemas críticos baseadas em estados discretos e estruturas matriciais em Assembly MIPS.
+- **Interação principal:** Após um briefing inicial detalhado e seleção de fase/modo, o usuário opera a cada turno sobre um painel organizado em 5 seções (`Caixa de Rádio`, `Cabeçalho do Setor`, `Radar 2D ASCII com Legenda`, `Tabela de Telemetria` e `Painel de Comando da Torre`), podendo comandar voos ativos (`1..6`), avançar o turno mantendo todos no curso (`7`), consultar o manual (`8`) ou encerrar (`0`).
 
 ---
 
 ## 3. Entradas, Processamento e Saídas Esperadas
 
 ### Entradas
-- Seleção inicial de cenário (`1..3`), consulta ao manual (`4`) ou encerramento (`0`).
-- Seleção no painel da torre (`0..8`) e comandos individuais de voo (`0..6`), todos lidos exclusivamente como strings via `syscall 8` (`read_safe_int`).
+- Escolha inicial de fase/modo (`1..4`), consulta ao manual (`5`) ou encerramento (`0`).
+- Opções no painel da torre (`0..8`) e comandos individuais de voo (`0..6`), lidos exclusivamente como strings via `syscall 8` (`read_safe_int`).
 
 ### Processamento
-- Inicialização de `fleet_matrix` (`6 aeronaves × 6 atributos`: `ID`, `ALT`, `DIST`, `FUEL`, `STATE`, `ALERT`) conforme o cenário escolhido.
-- Validação de comandos aeronáuticos (limites `1000..4000 ft`, reserva única da pista em `ALT == 1000 ft` e `DIST <= 3 NM`, arremetida tática `+1000 ft / +3 NM`).
-- Atualização de turno: movimento (`-1 NM` fora de órbita), consumo (`-1` combustível), pousos, arremetida automática (`00 NM` sem autorização), `MAYDAY` (`<= 3`), pane seca (`== 0`), verificação par-a-par de `TCAS!`/colisão, ativação de ondas e cálculo de pontuação (`current_score`) e classificação final (`Rank`).
+- Inicialização de `fleet_matrix` (`6 × 6 words`: `ID`, `ALT`, `DIST`, `FUEL`, `STATE`, `ALERT`) por tabela fixa (`init_fleet`) ou gerador procedural sem conflitos iniciais (`init_random_fleet` via `syscall 30/40/42`).
+- Validação de regras operacionais: limites verticais (`1000..4000 ft`), autorização de pouso (`ALT=1000`, `DIST<=3`, pista livre e fora de taxiamento `runway_cooldown == 0`), arremetida tática apenas na aproximação final (`DIST <= 4 NM`, retornando a `08 NM`).
+- Atualização por turno: avanço `-1 NM` fora de órbita, consumo `-1` combustível, pouso (`runway_cooldown = 1`), falha crítica ao cruzar `00 NM` sem autorização, `MAYDAY`/`PANE SECA`, verificação `O(n²)` de `TCAS!`/colisão, ondas nos Turnos 2 e 4 e cálculo de pontuação/ranking.
 
 ### Saídas
-- Painel ASCII organizado em 5 seções no console do MARS, relatório final com avaliação de desempenho (`RANK S` a `REPROVADO`) e alertas sonoros MIDI discretos (`syscall 31`).
-
-### Exemplo de Uso
-1. Na abertura, o usuário lê o briefing inicial e escolhe `1` (**Operacao Padrao**).
-2. No Turno 1, `VO-101` está a `1000 ft, 2 NM` e pista `LIVRE`. O controlador digita `1` e depois `4` (Autorizar pouso).
-3. A Caixa de Rádio confirma a autorização, avança os voos (`VO-101` vai para `1 NM` como `[1*]`), e no Turno 2, após comandar `2 -> 1` (`VO-202` desce para `1000 ft`), `VO-101` cruza `00 NM`, pousa com segurança (`+140 pts`), libera a pista e entra a onda `VO-505`.
+- Painel ASCII organizado em 5 seções, relatório final com ranking de desempenho (`RANK S` a `REPROVADO`) e feedback sonoro MIDI via `syscall 31`.
 
 ---
 
 ## 4. Incorporação dos Requisitos Técnicos de MIPS
-- **Estrutura de dados em memória:** Matriz `fleet_matrix` (`144 bytes`) iniciada em `0x10010000`, indexada por aritmética de deslocamentos (`(idx + 2*idx) << 3`), além de três tabelas constantes de cenário (`scenario_1_data..3`).
-- **Decisões e repetições reais:** Laço principal de turnos, varredura da grade 2D (`4 altitudes × 11 distâncias × 6 aeronaves`), verificação par-a-par `O(n²)` de separação e colisão, parser léxico caractere a caractere em `read_safe_int`.
-- **Procedimentos, parâmetros e pilha (`$sp`):** 14 procedimentos bem delimitados (`$a0..$a1`, `$v0..$v1`), preservando `$ra` e `$s0..$s5` na pilha com epílogos simétricos.
-- **Tratamento robusto de entrada:** Proibição de `syscall 5`; rejeição de linhas vazias, texto e números fora da faixa sem travar o MARS.
-
----
-
-## 5. Escopo e Divisão Inicial de Tarefas
-- **Escopo entregue:** Briefing e manual integrados, 3 cenários determinísticos, radar 2D ASCII + tabela de telemetria + caixa de rádio organizada, 6 comandos por voo + atalho de avanço de turno (`7`) + ajuda (`8`), pontuação/ranking e feedback MIDI (`syscall 31`).
-- **Divisão de tarefas (planejamento base):**
-  1. Modelagem da matriz em memória, cenários determinísticos e E/S segura (`syscall 8`).
-  2. Lógica de voo, separação `TCAS`, colisões, combustível e sistema de pontuação.
-  3. Interface ASCII organizada em 5 seções, briefing, manual e alertas MIDI.
-  4. Bateria de testes reproduzíveis no MARS CLI e documentação técnica.
+- **Estrutura de dados em memória:** Matriz `fleet_matrix` (`144 B` a partir de `0x10010000`) indexada via deslocamentos em `get_aircraft_addr` e 3 tabelas de cenário.
+- **Decisões e repetições reais:** Laço principal, varredura 2D do radar, laço de geração sem sobreposição no RNG, parser léxico em `read_safe_int` e verificação par-a-par de colisões.
+- **Procedimentos, convenções e pilha (`$sp`):** **17 procedimentos** preservando `$ra` e `$s0..$s5` na pilha com retorno simétrico.
+- **Tratamento robusto de entradas e encerramento:** Proibição de `syscall 5`; tratamento seguro de strings inválidas e saída limpa via `syscall 10`.

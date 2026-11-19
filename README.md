@@ -2,7 +2,7 @@
 
 Simulador e jogo estratégico por turnos em **Terminal ASCII**, desenvolvido em **Assembly MIPS32** para o simulador **MARS 4.5+** (testado no **MARS 4.6U**), como projeto prático da disciplina de **Arquitetura e Organização de Computadores** (ICT-UNIFESP).
 
-O usuário assume o papel de controlador de voo responsável por sequenciar **6 aeronaves** até uma única pista de pouso (`00 NM`), escolhendo entre **3 cenários determinísticos**, gerenciando altitudes (`1000..4000 ft`), distância, reservas de combustível, esperas em órbita, alertas de separação mínima (`TCAS!`) e emergências (`MAYDAY`), com sistema de **pontuação e classificação final**.
+O usuário atua como controlador de voo sequenciando **6 aeronaves** até uma pista única (`00 NM`), escolhendo entre **3 fases fixas desafiadoras** ou um **Modo Aleatório Dinâmico (RNG `syscall 42`)**, respeitando o tempo de taxiamento pós-pouso (`1` turno de pista ocupada), os limites rigorosos do setor (`00 NM`) e o consumo contínuo de combustível.
 
 ---
 
@@ -16,11 +16,11 @@ O usuário assume o papel de controlador de voo responsável por sequenciar **6 
 
 | Caminho | Descrição |
 | :--- | :--- |
-| [src/atc_mips.asm](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/src/atc_mips.asm) | **Arquivo principal** com briefing inicial, manual consultável, 3 cenários, interface ASCII organizada em 5 seções, simulação de voo, pontuação e áudio MIDI. |
-| [docs/proposta-fase1.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/proposta-fase1.md) | Proposta inicial da Fase 1 (ideia, escopo, entradas/saídas e plano de desenvolvimento). |
-| [docs/ficha-tecnica.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/ficha-tecnica.md) | Ficha técnica com arquitetura, estruturas de dados, procedimentos, contagem de instruções e requisitos MIPS. |
-| [docs/testes.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/testes.md) | Casos de teste determinísticos e reproduzíveis executados no MARS CLI (cenários 1, 2 e 3, entradas inválidas e situações limite). |
-| [docs/uso-ia.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/uso-ia.md) | Registro de uso de inteligência artificial e verificação manual comparada com a execução no MARS. |
+| [src/atc_mips.asm](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/src/atc_mips.asm) | **Arquivo principal** com briefing inicial, manual consultável, 3 fases fixas + modo aleatório (`syscall 30/40/42`), interface ASCII em 5 seções, simulação rigorosa e áudio MIDI (`syscall 31`). |
+| [docs/proposta-fase1.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/proposta-fase1.md) | Proposta da Fase 1 (ideia, escopo, entradas/saídas e plano de desenvolvimento). |
+| [docs/ficha-tecnica.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/ficha-tecnica.md) | Ficha técnica concisa com arquitetura, estruturas de dados, procedimentos, contagem de instruções e requisitos MIPS. |
+| [docs/testes.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/testes.md) | Casos de teste determinísticos reproduzíveis no MARS CLI (Fases 1, 2 e 3, geração aleatória, entradas inválidas e violações de limite). |
+| [docs/uso-ia.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/uso-ia.md) | Registro de uso de inteligência artificial e rastreamento manual comparado com a execução no MARS. |
 
 ---
 
@@ -29,62 +29,55 @@ O usuário assume o papel de controlador de voo responsável por sequenciar **6 
 - **Simulador compatível:** MARS 4.5 ou superior (validado em **MARS 4.6U** com Java).
 - **Memory Configuration:** `Default` (segmento `.data` iniciado em `0x10010000`).
 - **Delayed Branching:** Desativado (padrão do MARS).
-- **Ferramentas adicionais:** Nenhuma ferramenta gráfica externa é necessária — toda a visualização ocorre no painel **Run I/O** (console ASCII) com feedback sonoro discreto via **MIDI (`syscall 31`)**.
+- **Ferramentas externas:** Nenhuma necessária — toda a operação ocorre no console **Run I/O** (ASCII), com feedback sonoro discreto via **MIDI (`syscall 31`)**.
 
-### Execução na Interface Gráfica (GUI) do MARS
-1. Abra o MARS e carregue o arquivo **`src/atc_mips.asm`**.
-2. Confirme em **Settings → Memory Configuration** que está selecionado **`Default`**.
-3. Pressione **F3** (Assemble) e **F5** (Run).
-4. Interaja pelo painel **Run I/O**.
-
-### Execução via Linha de Comando (CLI)
-Para validar apenas a montagem:
-```bash
-java -jar /home/BRENO/Documents/Unifesp/aoc/Mars-Linux a ae1 nc src/atc_mips.asm
-```
-
-Para executar interativamente no terminal:
-```bash
-java -jar /home/BRENO/Documents/Unifesp/aoc/Mars-Linux nc src/atc_mips.asm
-```
+### Execução no MARS (GUI e CLI)
+- **GUI:** Abra `src/atc_mips.asm`, confirme **Settings → Memory Configuration → Default**, pressione **F3** e **F5**, e interaja pelo painel **Run I/O**.
+- **CLI (montagem):**
+  ```bash
+  java -jar /home/BRENO/Documents/Unifesp/aoc/Mars-Linux a ae1 nc src/atc_mips.asm
+  ```
+- **CLI (execução interativa):**
+  ```bash
+  java -jar /home/BRENO/Documents/Unifesp/aoc/Mars-Linux nc src/atc_mips.asm
+  ```
 
 ---
 
-## Como Funciona e Comandos de Interação
+## Fases, Regras de Limite e Comandos
 
-### 1. Abertura, Briefing e Seleção de Cenário
-Ao iniciar, o simulador exibe um **Briefing Inicial** explicando o objetivo, o funcionamento do turno, os símbolos do radar e as regras de pouso. Em seguida, permite escolher:
-- `1` — **Operacao Padrao** (tráfego moderado com entrada em ondas nos turnos 2 e 4).
-- `2` — **Hora do Rush** (5 voos ativos já no Turno 1 com conflitos de altitude em `2000 ft` e `3000 ft`).
-- `3` — **Emergencia de Combustivel** (voos iniciando já em `MAYDAY` com `Comb = 3`).
-- `4` — **Ver Manual Completo, Regras e Pontuacao**.
+### 1. Seleção de Fase / Modo
+Após o **Briefing Inicial** explicativo, escolha:
+- `1` — **Fase 1: Operacao Tatica (Media - Fixa):** exige usar espera em órbita para respeitar o taxiamento da pista sem invadir `00 NM`.
+- `2` — **Fase 2: Hora do Rush (Dificil - Fixa):** 5 voos ativos no Turno 1 com congestionamento triplo em `2000 ft`, exigindo separação, órbitas e arremetidas táticas.
+- `3` — **Fase 3: Tempestade MAYDAY (Extrema - Fixa):** voos iniciando em emergência crítica de combustível, exigindo pousos sincronizados no limite (`Comb = 0..1`).
+- `4` — **Fase 4: Modo Aleatorio Dinamico:** gera posições, altitudes, órbitas e combustível enxuto a cada partida usando o RNG do MARS (`syscall 30/40/42`), evitando colisões/TCAS no Turno 1.
+- `5` — **Ver Manual Completo, Limites da Matriz e Pontuacao**.
 - `0` — **Encerrar Simulador**.
 
-### 2. Organização do Painel a Cada Turno
-Cada ciclo no terminal segue 5 seções fixas e padronizadas:
-- **`[1] CAIXA DE RADIO / EVENTOS DO TURNO`**: confirma a ordem dada pela torre e registra pousos, alertas `MAYDAY`, `TCAS!`, arremetidas e chegada de ondas.
-- **`[2] CABECALHO DO SETOR`**: exibe Turno (`X / 25`), Cenário ativo, Pontuação (`Score`), Status da Pista (`LIVRE` ou `RESERV(VO-xxx)`), Pousos (`X/6`), Alertas TCAS e Acidentes.
-- **`[3] RADAR DE APROXIMACAO 2D (ASCII)`**: grade `4000..1000 ft` × `00..10 NM` com legenda fixa logo abaixo.
-- **`[4] TABELA DE TELEMETRIA DA FROTA`**: mostra `Slot | Voo | Alt(ft) | Dist(NM) | Comb | Estado | Alerta`.
-- **`[5] PAINEL DE COMANDO DA TORRE`**:
-  - `1..6`: seleciona um voo ativo para emitir ordem (`1-Reduzir -1000ft`, `2-Subir +1000ft`, `3-Alternar orbita`, `4-Autorizar pouso`, `5-Arremeter +1000ft/+3NM`, `6-Manter curso da aeronave`, `0-Voltar`).
-  - `7`: **Avancar turno (manter todas as aeronaves no curso atual)**.
-  - `8`: **Consultar Manual Completo / Regras** (a qualquer momento, sem gastar turno).
-  - `0`: **Encerrar operacao**.
+### 2. Estrutura do Terminal a Cada Turno (5 Seções)
+1. **`[1] CAIXA DE RADIO / EVENTOS DO TURNO`**: confirma ordens da torre e relata pousos, liberação de taxiamento, alertas `MAYDAY`, `TCAS!`, chegadas e acidentes.
+2. **`[2] CABECALHO DO SETOR`**: Turno (`X / 25`), Modo ativo, **Score**, Status da Pista (`LIVRE`, `RESERV(VO-xxx)` ou `OCUPADA(TAXI)`), Pousos, Alertas TCAS e Acidentes.
+3. **`[3] RADAR DE APROXIMACAO 2D (ASCII)`**: grade `4000..1000 ft` × `00..10 NM` com legenda fixa logo abaixo (`[==]` Pista livre, `[##]` Pista em taxiamento).
+4. **`[4] TABELA DE TELEMETRIA DA FROTA`**: mostra `Slot | Voo | Alt(ft) | Dist(NM) | Comb | Estado | Alerta`.
+5. **`[5] PAINEL DE COMANDO DA TORRE`**:
+   - `1..6`: seleciona aeronave ativa (`1-Reduzir -1000ft`, `2-Subir +1000ft`, `3-Alternar orbita`, `4-Autorizar pouso`, `5-Arremeter [exige Dist<=4 NM]`, `6-Manter curso`, `0-Voltar`).
+   - `7`: **Avancar turno (manter todas as aeronaves no curso atual)**.
+   - `8`: **Consultar Manual Completo / Limites e Regras** (sem gastar turno).
+   - `0`: **Encerrar operacao**.
 
-### 3. Regras, Pontuação e Ranking
-- **Avanço e combustível:** voos ativos fora de órbita avançam `-1 NM/turno`; todos em voo consomem `1` de combustível por turno.
-- **Pouso válido:** exige `ALT == 1000 ft`, `DIST <= 3 NM` e `Pista LIVRE`. Cruzar `00 NM` sem autorização gera arremetida automática (`3 NM`, `>= 2000 ft`).
-- **Separação mínima:** dois voos na mesma altitude com `|DistA - DistB| == 1` disparam `TCAS!`; na mesma célula (`DistA == DistB`), ocorre colisão aérea.
-- **Pontuação e Rank:** `+(100 + 10 * Comb_restante)` por pouso seguro | `-15` arremetida manual | `-25` alerta TCAS | `-40` arremetida automática | `-300` acidente. Ranks sem acidentes: **`RANK S`** (`>= 750`), **`RANK A`** (`>= 650`), **`RANK B`** (`>= 500`), **`RANK C`** (`< 500`).
+### 3. Regras Críticas e Pontuação
+- **Limite da Matriz (`00 NM`):** se uma aeronave atingir `00 NM` sem estar `AUTORIZADO` a `1000 ft`, não há retorno automático — ocorre **ACIDENTE CRÍTICO** (`INVASAO DE PISTA` ou `VIOLACAO DE LIMITE`, `-300 pts`) e fim da partida.
+- **Taxiamento Pós-Pouso:** após cada pouso bem-sucedido, a pista fica **`OCUPADA(TAXI)`** (`[##]`) por **1 turno inteiro**, bloqueando novas autorizações de pouso nesse turno.
+- **Arremetida Tática (`Comando 5`):** permitida somente na aproximação final (**`Dist <= 4 NM`**); sobe `+1000 ft` (teto `4000 ft`) e retorna o voo ao circuito em `08 NM` (`-15 pts`).
+- **Pontuação e Rank:** `+(100 + 10 × Comb_restante)` por pouso | `-15` arremetida | `-25` `TCAS!` | `-300` acidente. Ranks sem acidentes: **`RANK S`** (`>= 750`), **`RANK A`** (`>= 650`), **`RANK B`** (`>= 500`), **`RANK C`** (`< 500`).
 
 ---
 
 ## Limitações Conhecidas
 
-- Simulação discreta por turnos sobre grade fixa de `4` altitudes (`1000..4000 ft`) e `11` distâncias (`00..10 NM`).
-- Cenários determinísticos para garantir total reprodutibilidade dos casos de teste.
-- Em execuções automatizadas via pipe (`stdin`) no MARS CLI, caso o fluxo atinja `EOF` antes do término da partida ou de um comando `0`, `SystemIO.readString()` no MARS lança `NullPointerException` por retorno nulo de `readLine()`. Scripts de teste devem sempre encerrar o jogo ou enviar `0`.
+- Simulação discreta por turnos sobre grade de `4` altitudes (`1000..4000 ft`) e `11` distâncias (`00..10 NM`).
+- Em execuções via pipe (`stdin`) no MARS CLI, alcançar `EOF` antes do término da partida ou de um comando `0` provoca `NullPointerException` em `SystemIO.readString()` do MARS; roteiros automatizados devem sempre encerrar a partida ou enviar `0`.
 
 ---
 
