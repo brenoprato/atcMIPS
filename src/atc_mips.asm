@@ -34,13 +34,17 @@ str_header_turn:    .asciiz "\n--- TURNO "
 str_header_landed:  .asciiz "/20 | Pousos: "
 str_header_runway:  .asciiz "/4 | Pista(0=livre): "
 str_radar_border:   .asciiz "\n       +---------------------------------------+\n"
-str_radar_axis:     .asciiz "       +---------------------------------------+\n          00   01   02   03   04   05   06   07 (NM)\nSlot | Voo    | Alt  | Dist | Comb | Estado\n"
+str_radar_axis:     .asciiz "       +---------------------------------------+\n          00   01   02   03   04   05   06   07 (NM)\nSlot | Voo    | Alt  | Dist | Comb | Estado\n-----+--------+------+------+------+-----------\n"
 str_alt_label:      .asciiz "ft | "
 str_cell_empty:     .asciiz "[  ] "
 str_cell_runway:    .asciiz "[==] "
 str_cell_collision: .asciiz "[XX] "
 str_flight_prefix:  .asciiz "    | VO-"
 str_sep:            .asciiz " | "
+str_sep_dist:       .asciiz " | 0"
+str_sep_fuel:       .asciiz "NM | "
+str_sep_state:      .asciiz "   | "
+str_pad_alt:        .asciiz "   "
 str_aprox:          .asciiz "APROX\n"
 str_orbita:         .asciiz "ORBITA\n"
 str_autorizado:     .asciiz "AUTORIZADO\n"
@@ -310,23 +314,34 @@ radar_table_loop:
     li $v0, 4
     la $a0, str_sep
     syscall
-    li $v0, 1                       # Coluna ALT (0 quando pousou)
-    lw $a0, 4($s1)
+    lw $a0, 4($s1)                  # Coluna ALT (4 digitos ou 0 quando pousou)
+    li $v0, 1
     syscall
+    bne $a0, $zero, radar_print_dist # Se ALT == 0, completa coluna com 3 espacos
     li $v0, 4
-    la $a0, str_sep
+    la $a0, str_pad_alt
     syscall
-    li $v0, 1                       # Coluna DIST (0..7 NM)
+radar_print_dist:
+    li $v0, 4                       # Coluna DIST formatada como "0XNM"
+    la $a0, str_sep_dist
+    syscall
+    li $v0, 1
     lw $a0, 8($s1)
     syscall
     li $v0, 4
-    la $a0, str_sep
+    la $a0, str_sep_fuel
     syscall
-    li $v0, 1                       # Coluna FUEL (turnos restantes)
-    lw $a0, 12($s1)
+    lw $t0, 12($s1)                 # Coluna FUEL (2 digitos: se < 10, imprime '0')
+    bge $t0, 10, radar_print_fuel
+    li $v0, 11
+    li $a0, '0'
     syscall
-    li $v0, 4
-    la $a0, str_sep
+radar_print_fuel:
+    li $v0, 1
+    move $a0, $t0
+    syscall
+    li $v0, 4                       # Separador final antes do estado
+    la $a0, str_sep_state
     syscall
     sll $t0, $s2, 2                 # Offset na lookup table (STATE * 4)
     lw $a0, state_names($t0)        # Imprime nome do estado ("APROX\n", etc.)
