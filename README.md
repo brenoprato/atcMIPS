@@ -8,7 +8,10 @@ O usuário atua como controlador de voo sequenciando **4 aeronaves** (`VO-101` a
 
 ## Integrantes
 
-- **Breno** *(adicionar eventuais demais integrantes do grupo, RA e funções antes da entrega final)*
+- **Breno Porto**
+- **José Rubens**
+- **Guilherme Bento**
+- **Felipe Pereira**
 
 ---
 
@@ -16,11 +19,10 @@ O usuário atua como controlador de voo sequenciando **4 aeronaves** (`VO-101` a
 
 | Caminho | Descrição |
 | :--- | :--- |
-| [src/atc_mips.asm](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/src/atc_mips.asm) | **Código-fonte principal** (646 linhas, 425 instruções úteis MIPS, 6 procedimentos com nomes explícitos e comentários breves). |
-| [docs/proposta-fase1.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/proposta-fase1.md) | Proposta da Fase 1 (ideia, escopo, entradas/saídas e requisitos MIPS). |
-| [docs/ficha-tecnica.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/ficha-tecnica.md) | Ficha técnica concisa com arquitetura, matriz em memória, procedimentos, uso da pilha e contagem de instruções. |
-| [docs/testes.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/testes.md) | Casos de teste determinísticos reproduzíveis no MARS CLI (vitória, entradas inválidas e situações limite). |
-| [docs/uso-ia.md](file:///home/BRENO/Documents/Unifesp/aoc/aoc-final/docs/uso-ia.md) | Registro de uso de IA e rastreamento manual comparado com o dump de memória e execução no MARS. |
+| [src/atc_mips.asm](src/atc_mips.asm) | **Código-fonte principal** (661 linhas, 434 instruções úteis MIPS, 6 procedimentos com nomes explícitos e comentários breves). |
+| [docs/ficha-tecnica.md](docs/ficha-tecnica.md) | Ficha técnica concisa com arquitetura, matriz em memória, procedimentos, uso da pilha e contagem de instruções. |
+| [docs/testes.md](docs/testes.md) | Casos de teste passo a passo no MARS (uso normal, entradas inválidas e situações limite). |
+| [docs/uso-ia.md](docs/uso-ia.md) | Registro de uso de IA e rastreamento manual comparado com a memória no MARS. |
 
 ---
 
@@ -31,16 +33,11 @@ O usuário atua como controlador de voo sequenciando **4 aeronaves** (`VO-101` a
 - **Delayed Branching:** Desativado (padrão do MARS).
 - **Ferramentas externas:** Nenhuma necessária — toda a interação ocorre no console **Run I/O** (100% ASCII).
 
-### Execução no MARS (GUI e CLI)
-- **GUI:** Abra `src/atc_mips.asm`, confirme **Settings → Memory Configuration → Default**, pressione **F3** e **F5**, e interaja pelo painel **Run I/O**.
-- **CLI (verificação de montagem):**
-  ```bash
-  java -jar /home/BRENO/Documents/Unifesp/aoc/Mars-Linux a ae1 nc src/atc_mips.asm
-  ```
-- **CLI (execução interativa):**
-  ```bash
-  java -jar /home/BRENO/Documents/Unifesp/aoc/Mars-Linux nc src/atc_mips.asm
-  ```
+### Como Executar no MARS
+1. Abra o **MARS** e vá em **File → Open**, selecionando `src/atc_mips.asm`.
+2. Confirme em **Settings → Memory Configuration** que a opção **Default** está marcada.
+3. Pressione **F3** (*Assemble*) para montar o código e **F5** (*Run*) para iniciar a simulação.
+4. Digite os comandos no painel **Run I/O** (pressionando **Enter** após cada entrada).
 
 ---
 
@@ -84,4 +81,4 @@ O usuário atua como controlador de voo sequenciando **4 aeronaves** (`VO-101` a
 
 ## Vídeo de Demonstração
 
-- **Link do vídeo final (até 4 minutos):** *[A inserir após gravação e publicação antes da entrega da Fase 3]*
+- **Link do vídeo final (até 4 minutos):** *[A inserir]*
